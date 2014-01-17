@@ -1,17 +1,17 @@
 <project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.normation.plugins</groupId>
-  <artifactId>hello-world</artifactId>
+  <artifactId>itop-connector</artifactId>
   <packaging>jar</packaging>
 
   <parent>
     <groupId>com.normation</groupId>
     <artifactId>parent-pom</artifactId>
-    <version>2.9.3-SNAPSHOT</version>
+    <version>2.10.1-SNAPSHOT</version>
   </parent>
 
   <description>
-    This is a HelloWorld plugin for Rudder. Use it as a template to build your own plugin.
+    Plugin used to prototype iTop needs
   </description>
   
   <build>
@@ -53,12 +53,6 @@
       <scope>provided</scope>
     </dependency>
     
-    <dependency>
-      <groupId>org.squeryl</groupId>
-      <artifactId>squeryl_${scala-binary-version}</artifactId>
-      <version>${squeryl-version}</version>
-    </dependency>
-
   </dependencies>
 
   <repositories>
