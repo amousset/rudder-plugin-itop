@@ -30,8 +30,9 @@ class ItopApi(
 
       itopService.getItopCompliance match {
         case Full(rules) =>
-          val json = JField( "rules",
-            rules.map( ruleCompliance =>
+          val json =
+            (
+            "rules" -> rules.map( ruleCompliance =>
               (
                   ("id" -> ruleCompliance.id.value)
                 ~ ("compliance" -> ruleCompliance.compliance.percents)
@@ -48,8 +49,7 @@ class ItopApi(
                     )
                   })
               )
-            )
-          )
+            ) )
 
           toJsonResponse(None, json)
 
