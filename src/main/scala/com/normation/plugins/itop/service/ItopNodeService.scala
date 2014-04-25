@@ -37,13 +37,13 @@ case class CompositeStatus(
    * Only get non zero value.
    */
   def percents: Map[String, Int] = Map(
-      "notApplicable" -> percent(notApplicable)
-    , "success"       -> percent(success)
-    , "repaired"      -> percent(repaired)
-    , "error"         -> percent(error)
-    , "unknown"       -> percent(unknown)
-    , "noReport"      -> percent(noReport)
-    , "applying"      -> percent(applying)
+      NotApplicableReportType.severity -> percent(notApplicable)
+    , SuccessReportType.severity       -> percent(success)
+    , RepairedReportType.severity      -> percent(repaired)
+    , ErrorReportType.severity         -> percent(error)
+    , UnknownReportType.severity       -> percent(unknown)
+    , NoAnswerReportType.severity      -> percent(noReport)
+    , PendingReportType.severity       -> percent(applying)
   ).filter( _._2 != 0)
 }
 
