@@ -15,9 +15,11 @@ import net.liftweb.http.rest.RestHelper
 import com.normation.rudder.domain.reports.bean._
 
 
+/**
+ * Describe the status of a number of items.
+ */
 case class CompositeStatus(
-    itemNumber   : Int
-  , notApplicable: Int = 0
+    notApplicable: Int = 0
   , success      : Int = 0
   , repaired     : Int = 0
   , error        : Int = 0
@@ -27,8 +29,13 @@ case class CompositeStatus(
 ) {
   private[this] def percent(i:Int) = Math.round(100 * i.toFloat / itemNumber)
 
-  //percents for items - approximated !!!
-  //only for displaying
+  val itemNumber = notApplicable + success + repaired + error + unknown + noReport + applying
+
+  /**
+   * Get a list of percents of items - approximated !!!
+   * in each status.
+   * Only get non zero value.
+   */
   def percents: Map[String, Int] = Map(
       "notApplicable" -> percent(notApplicable)
     , "success"       -> percent(success)
@@ -40,7 +47,33 @@ case class CompositeStatus(
   ).filter( _._2 != 0)
 }
 
+/**
+ * Factory from CompositeStatus from a set of objects
+ */
+object CompositeStatus {
 
+  def apply[T](reports: Seq[ReportType]) = {
+    new CompositeStatus(
+        notApplicable = reports.count( _ == NotApplicableReportType)
+      , success       = reports.count( _ == SuccessReportType)
+      , repaired      = reports.count( _ == RepairedReportType)
+      , error         = reports.count( _ == ErrorReportType)
+      , unknown       = reports.count( _ == UnknownReportType)
+      , noReport      = reports.count( _ == NoAnswerReportType)
+      , applying      = reports.count( _ == PendingReportType)
+    )
+  }
+}
+
+
+/**
+ * Compliance for a rules.
+ * It lists:
+ * - id: the rule id
+ * - compliance: the compliance of the rule by node
+ *   (total number of node, repartition of node by status)
+ * - nodeCompliance: the list of compliance for each node, for that that rule
+ */
 case class ItopRuleCompliance(
     id             : RuleId
     //compliance by nodes
@@ -48,6 +81,15 @@ case class ItopRuleCompliance(
   , nodeCompliances: Seq[ItopNodeCompliance]
 )
 
+/**
+ * Compliance for node, for a given set of directives
+ * (normally, all the directive for a given rule)
+ * It lists:
+ * - id: the node id
+ * - compliance: total number of directives and
+ *   repartition of directive compliance by status
+ * - directiveCompliances: status for each directive, for that node.
+ */
 case class ItopNodeCompliance(
     id                  : NodeId
     //compliance by directive (by nodes)
@@ -56,7 +98,8 @@ case class ItopNodeCompliance(
 )
 
 /**
- * The logic of interaction with itop
+ * The class in charge of getting and calculating
+ * compliance for all rules/nodes/directives.
  */
 class ItopComplianceService(
     rulesRepo       : RoRuleRepository
@@ -124,45 +167,26 @@ class ItopComplianceService(
       //for each rule for each node, we want to have a
       //directiveId -> reporttype map
       val nonEmptyRules = reportsByNodes.map { case (ruleId, nodeStatusReports) =>
-        val nodes = nodeStatusReports.map(r =>
-
-          ItopNodeCompliance(
-              r.nodeId
-            , CompositeStatus(
-                  r.directives.size
-                , notApplicable = r.directives.count( _.directiveReportType == NotApplicableReportType)
-                , success       = r.directives.count( _.directiveReportType == SuccessReportType)
-                , repaired      = r.directives.count( _.directiveReportType == RepairedReportType)
-                , error         = r.directives.count( _.directiveReportType == ErrorReportType)
-                , unknown       = r.directives.count( _.directiveReportType == UnknownReportType)
-                , noReport      = r.directives.count( _.directiveReportType == NoAnswerReportType)
-                , applying      = r.directives.count( _.directiveReportType == PendingReportType)
-              )
-            , r.directives.map(d => (d.directiveId, d.directiveReportType))
-          )
-        )
-
         (
           ruleId,
           ItopRuleCompliance(
               ruleId
-            , CompositeStatus(
-                  nodes.size
-                , notApplicable = nodeStatusReports.count( _.nodeReportType == NotApplicableReportType)
-                , success       = nodeStatusReports.count( _.nodeReportType == SuccessReportType)
-                , repaired      = nodeStatusReports.count( _.nodeReportType == RepairedReportType)
-                , error         = nodeStatusReports.count( _.nodeReportType == ErrorReportType)
-                , unknown       = nodeStatusReports.count( _.nodeReportType == UnknownReportType)
-                , noReport      = nodeStatusReports.count( _.nodeReportType == NoAnswerReportType)
-                , applying      = nodeStatusReports.count( _.nodeReportType == PendingReportType)
+            , CompositeStatus(nodeStatusReports.map( _.nodeReportType))
+            , nodeStatusReports.map(r =>
+                ItopNodeCompliance(
+                    r.nodeId
+                  , CompositeStatus(r.directives.map( _.directiveReportType))
+                  , r.directives.map(d => (d.directiveId, d.directiveReportType))
+                )
               )
-            , nodes
           )
         )
       }.toMap
 
-      //(initializedCompliances ++
-          (nonEmptyRules).values.toSeq
+
+      //return the full list, even for non responding nodes/directives
+      //but override with values when available.
+      (initializedCompliances ++ nonEmptyRules).values.toSeq
 
     }
   }
