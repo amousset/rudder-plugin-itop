@@ -13,7 +13,7 @@ import bootstrap.liftweb.RudderConfig
 import net.liftweb.common.Loggable
 
 /**
- * Definition of services for the HelloWorld plugin.
+ * A simple module
  */
 @Configuration
 class ItopConf extends Loggable with  ApplicationContextAware with InitializingBean {

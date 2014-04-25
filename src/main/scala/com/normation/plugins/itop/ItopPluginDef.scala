@@ -24,32 +24,32 @@ class ItopPluginDef(itopApi: ItopApi) extends RudderPluginDef with Loggable {
 
     JSON format:
     <pre>
-{
+&#123;
   "action": "itopCompliance",
   "result": "success",
   "data": "rules": [
-    {
+    &#123;
       "id": "dff88a69-8988-4655-bc6b-0890f74207d7",
-      "compliance": {
+      "compliance": &#123;
         "noReport": 100
-      },
+      &#125;,
       "nodes": [
-        {
+        &#123;
           "id": "root",
-          "compliance": {
+          "compliance": &#123;
             "noReport": 100
-          },
+          &#125;,
           "directives": [
-            {
+            &#123;
               "id": "53714a9c-04d7-48f9-a043-c966ea674ae7",
               "status": "NoAnswer"
-            }
+            &#125;
           ]
-        }
+        &#125;
       ]
-    }
+    &#125;
   ]
-}
+&#125;
     </pre>
     The compliance is a percent for the corresponding state.
 
