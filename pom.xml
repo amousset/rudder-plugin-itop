@@ -10,7 +10,7 @@
     <version>2.10.0</version>
   </parent>
   
-  <version>${rudder-version}-0.1</version>
+  <version>${rudder-version}-0.2</version>
 
   <description>
     Plugin used to prototype iTop needs
