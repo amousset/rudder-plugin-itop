@@ -44,7 +44,7 @@ case class CompositeStatus(
     , UnknownReportType.severity       -> percent(unknown)
     , NoAnswerReportType.severity      -> percent(noReport)
     , PendingReportType.severity       -> percent(applying)
-  ).filter( _._2 != 0)
+  )
 }
 
 /**
