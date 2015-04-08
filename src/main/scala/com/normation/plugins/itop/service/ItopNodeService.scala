@@ -3,67 +3,16 @@ package com.normation.plugins.itop.service
 import com.normation.inventory.domain._
 import com.normation.rudder.domain.policies.DirectiveId
 import com.normation.rudder.domain.policies.RuleId
-import com.normation.rudder.domain.reports.bean.NodeStatusReport
-import com.normation.rudder.domain.reports.bean.ReportType
+import com.normation.rudder.domain.reports.ComplianceLevel
+import com.normation.rudder.domain.reports.bean._
 import com.normation.rudder.repository.RoNodeGroupRepository
 import com.normation.rudder.repository.RoRuleRepository
 import com.normation.rudder.services.nodes.NodeInfoService
 import com.normation.rudder.services.reports.ReportingService
+
 import net.liftweb.common._
-import net.liftweb.http.LiftResponse
-import net.liftweb.http.rest.RestHelper
-import com.normation.rudder.domain.reports.bean._
 
 
-/**
- * Describe the status of a number of items.
- */
-case class CompositeStatus(
-    notApplicable: Int = 0
-  , success      : Int = 0
-  , repaired     : Int = 0
-  , error        : Int = 0
-  , unknown      : Int = 0
-  , noReport     : Int = 0
-  , applying     : Int = 0
-) {
-  private[this] def percent(i:Int) = Math.round(100 * i.toFloat / itemNumber)
-
-  val itemNumber = notApplicable + success + repaired + error + unknown + noReport + applying
-
-  /**
-   * Get a list of percents of items - approximated !!!
-   * in each status.
-   * Only get non zero value.
-   */
-  def percents: Map[String, Int] = Map(
-      NotApplicableReportType.severity -> percent(notApplicable)
-    , SuccessReportType.severity       -> percent(success)
-    , RepairedReportType.severity      -> percent(repaired)
-    , ErrorReportType.severity         -> percent(error)
-    , UnknownReportType.severity       -> percent(unknown)
-    , NoAnswerReportType.severity      -> percent(noReport)
-    , PendingReportType.severity       -> percent(applying)
-  )
-}
-
-/**
- * Factory from CompositeStatus from a set of objects
- */
-object CompositeStatus {
-
-  def apply[T](reports: Seq[ReportType]) = {
-    new CompositeStatus(
-        notApplicable = reports.count( _ == NotApplicableReportType)
-      , success       = reports.count( _ == SuccessReportType)
-      , repaired      = reports.count( _ == RepairedReportType)
-      , error         = reports.count( _ == ErrorReportType)
-      , unknown       = reports.count( _ == UnknownReportType)
-      , noReport      = reports.count( _ == NoAnswerReportType)
-      , applying      = reports.count( _ == PendingReportType)
-    )
-  }
-}
 
 
 /**
@@ -77,7 +26,7 @@ object CompositeStatus {
 case class ItopRuleCompliance(
     id             : RuleId
     //compliance by nodes
-  , compliance     : CompositeStatus
+  , compliance     : ComplianceLevel
   , nodeCompliances: Seq[ItopNodeCompliance]
 )
 
@@ -93,8 +42,8 @@ case class ItopRuleCompliance(
 case class ItopNodeCompliance(
     id                  : NodeId
     //compliance by directive (by nodes)
-  , compliance          : CompositeStatus
-  , directiveCompliances: Seq[(DirectiveId, ReportType)]
+  , compliance          : ComplianceLevel
+  , directiveCompliances: Seq[(DirectiveId, ComplianceLevel)]
 )
 
 /**
@@ -110,57 +59,47 @@ class ItopComplianceService(
 
 
 
-  /*
-   * For all rule, find:
-   * - nodes targetted by that rules
-   * - directives of the rule
-   * - initialize the ItopRuleCompliance with "no reports"
+  /**
+   * Get the compliance for everything
    */
-
-  private[this] def initializeCompliances() : Box[Map[RuleId, ItopRuleCompliance]] = {
-
-    for {
-      groupLib <- nodeGroupRepo.getFullGroupLibrary()
-      nodeInfos <- nodeInfoService.getAll
-      rules <- rulesRepo.getAll()
-    } yield {
-
-      (rules.map { rule =>
-        val nodeIds = groupLib.getNodeIds(rule.targets, nodeInfos)
-
-        (rule.id, ItopRuleCompliance(
-            rule.id
-          , CompositeStatus(nodeIds.size, noReport = nodeIds.size)
-          , (nodeIds.map { nodeId =>
-              ItopNodeCompliance(
-                  nodeId
-                , CompositeStatus(rule.directiveIds.size, noReport = rule.directiveIds.size)
-                , rule.directiveIds.map { id => (id, NoAnswerReportType)}.toSeq
-              )
-            }).toSeq
-        ))
-      }).toMap
-    }
-  }
-
-
-
   def getItopCompliance() : Box[Seq[ItopRuleCompliance]] = {
 
     for {
-      rules                  <- rulesRepo.getAll()
-      initializedCompliances <- initializeCompliances
+      rules     <- rulesRepo.getAll()
+      groupLib  <- nodeGroupRepo.getFullGroupLibrary()
+      nodeInfos <- nodeInfoService.getAll()
     } yield {
 
-      val x = reportingService.findImmediateReportsByRules(rules.map(_.id).toSet)
+
+      // get an empty-initialized array of compliances to be used
+      // as defaults
+      val initializedCompliances : Map[RuleId, ItopRuleCompliance] = {
+        (rules.map { rule =>
+          val nodeIds = groupLib.getNodeIds(rule.targets, nodeInfos)
+
+          (rule.id, ItopRuleCompliance(
+              rule.id
+            , ComplianceLevel(noAnswer = nodeIds.size)
+            , (nodeIds.map { nodeId =>
+                ItopNodeCompliance(
+                    nodeId
+                  , ComplianceLevel(noAnswer = rule.directiveIds.size)
+                  , rule.directiveIds.map { id => (id, ComplianceLevel(noAnswer = 1))}.toSeq
+                )
+              }).toSeq
+          ))
+        }).toMap
+      }
 
       //reports by rules
       //that's a *little* gruikkk because, well,
       //we just plainly ignore errors
+
+      //Box[Set[RuleNodeStatusReport]]
+
       val reportsByNodes = (
-          reportingService.findImmediateReportsByRules(rules.map(_.id).toSet)
-          .flatMap( _._2.flatMap( _.map( _.getNodeStatus )))
-          .flatten.toSeq
+          reportingService.findRuleNodeStatusReports(nodeInfos.keySet, rules.map(_.id).toSet)
+          .toSeq.flatten
           .groupBy( _.ruleId )
       )
 
@@ -171,12 +110,12 @@ class ItopComplianceService(
           ruleId,
           ItopRuleCompliance(
               ruleId
-            , CompositeStatus(nodeStatusReports.map( _.nodeReportType))
+            , ComplianceLevel.sum(nodeStatusReports.map(_.compliance))
             , nodeStatusReports.map(r =>
                 ItopNodeCompliance(
                     r.nodeId
-                  , CompositeStatus(r.directives.map( _.directiveReportType))
-                  , r.directives.map(d => (d.directiveId, d.directiveReportType))
+                  , r.compliance
+                  , r.directives.toSeq.map { case (directiveId, directiveReport) => (directiveId, directiveReport.compliance) }
                 )
               )
           )

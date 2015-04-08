@@ -42,7 +42,9 @@ class ItopPluginDef(itopApi: ItopApi) extends RudderPluginDef with Loggable {
           "directives": [
             &#123;
               "id": "53714a9c-04d7-48f9-a043-c966ea674ae7",
-              "status": "NoAnswer"
+              "compliance": &#123;
+                "noReport": 100
+              &#125;,
             &#125;
           ]
         &#125;

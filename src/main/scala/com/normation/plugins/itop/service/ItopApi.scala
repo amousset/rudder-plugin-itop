@@ -10,6 +10,8 @@ import net.liftweb.http.rest.RestHelper
 import net.liftweb.json.JField
 import net.liftweb.json.JString
 import net.liftweb.json.JsonDSL._
+import com.normation.rudder.domain.reports.bean._
+import com.normation.rudder.domain.reports.ComplianceLevel
 
 /**
  * Class in charge of generating the JSON from the
@@ -19,6 +21,18 @@ class ItopApi(
     restExtractor: RestExtractorService
   , itopService  : ItopComplianceService
 ) extends RestHelper with Loggable {
+
+  implicit class ComplianceLevelPercent(c: ComplianceLevel) {
+    def percents: Map[String, Float] = Map(
+        NotApplicableReportType.severity -> c.pc_notApplicable
+      , SuccessReportType.severity       -> c.pc_success
+      , RepairedReportType.severity      -> c.pc_repaired
+      , ErrorReportType.severity         -> c.pc_error
+      , UnknownReportType.severity       -> (c.pc_unexpected + c.pc_missing)
+      , NoAnswerReportType.severity      -> c.pc_noAnswer
+      , PendingReportType.severity       -> c.pc_pending
+    )
+  }
 
   import net.liftweb.json.JsonDSL._
 
@@ -40,10 +54,10 @@ class ItopApi(
                     (
                         ("id" -> nodeCompliance.id.value)
                       ~ ("compliance" -> nodeCompliance.compliance.percents)
-                      ~ ("directives" -> nodeCompliance.directiveCompliances.map { case (id,status) =>
+                      ~ ("directives" -> nodeCompliance.directiveCompliances.map { case (id, directiveCompliance) =>
                           (
                               ("id" -> id.value)
-                            ~ ("status" -> status.severity)
+                            ~ ("compliance" -> directiveCompliance.percents)
                           )
                       })
                     )
