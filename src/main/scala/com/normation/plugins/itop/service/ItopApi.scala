@@ -10,8 +10,7 @@ import net.liftweb.http.rest.RestHelper
 import net.liftweb.json.JField
 import net.liftweb.json.JString
 import net.liftweb.json.JsonDSL._
-import com.normation.rudder.domain.reports.bean._
-import com.normation.rudder.domain.reports.ComplianceLevel
+import com.normation.rudder.domain.reports._
 
 /**
  * Class in charge of generating the JSON from the
@@ -28,7 +27,8 @@ class ItopApi(
       , SuccessReportType.severity       -> c.pc_success
       , RepairedReportType.severity      -> c.pc_repaired
       , ErrorReportType.severity         -> c.pc_error
-      , UnknownReportType.severity       -> (c.pc_unexpected + c.pc_missing)
+      , UnexpectedReportType.severity    -> c.pc_unexpected
+      , MissingReportType.severity       -> c.pc_missing
       , NoAnswerReportType.severity      -> c.pc_noAnswer
       , PendingReportType.severity       -> c.pc_pending
     )
